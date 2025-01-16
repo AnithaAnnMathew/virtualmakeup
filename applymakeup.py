@@ -71,18 +71,33 @@ def apply_eyeshadow(upper_eyelid_points, lower_eyebrow_points, image, color, int
     
 
 # Apply lipstick
+import cv2
+import numpy as np
+
+
 def apply_lipstick(outer_lips, inner_lips, image, color, intensity):
     mask = np.zeros_like(image)
+   
     polygon = np.array(
         [(int(p['x']), int(p['y'])) for p in outer_lips] +
         [(int(p['x']), int(p['y'])) for p in inner_lips],
         np.int32
     )
-    cv2.fillPoly(mask, [polygon], color)
-    blurred_lipstick = cv2.GaussianBlur(mask, (15, 15), 0)
-    return cv2.addWeighted(image, 1, blurred_lipstick, intensity, 0)
-    #return cv2.polylines(image_out, [polygon], isClosed=True, color=(0, 255, 0), thickness=1)
+    color_mask = cv2.fillPoly(mask, [polygon], color)
+    blurred_lipstick = cv2.GaussianBlur(color_mask, (15, 15), 0)
+    # final_image = np.uint8(image+intensity*(blurred_lipstick))
+    final_image = cv2.addWeighted(image, 1, blurred_lipstick, intensity, 2)
+    return final_image
+    # return cv2.polylines(image, [polygon], isClosed=True, color=(0, 255, 0), thickness=1)
 
+# Apply blush
+def apply_blush(face_shape, eye_lower, image, color, radius, intensity):
+    mid_x = (face_shape[len(face_shape) // 2]['x'] + eye_lower[len(eye_lower) // 2]['x']) // 2
+    mid_y = (face_shape[len(face_shape) // 2]['y'] + eye_lower[len(eye_lower) // 2]['y']) // 2
+    mask = np.zeros_like(image)
+    cv2.circle(mask, (int(mid_x), int(mid_y)), radius, color, -1)
+    blurred_blush = cv2.GaussianBlur(mask, (35, 35), 0)
+    return cv2.addWeighted(image, 1, blurred_blush, intensity, 0)
 
 
 # Apply eyeliner
@@ -93,47 +108,54 @@ def apply_eyeliner(upper_eyelid_points, image, color, thickness):
         cv2.line(image, start_point, end_point, color, thickness)
     return image
 
-
-        
+     
 # Main function
 def main():
-    # File paths
-    json_file = '000506.json'
-    image_file = '000506.png'
-
-    # Load JSON data
-    with open(json_file, 'r') as f:
-        data = json.load(f)
-
-    # Read the image
-    image = cv2.imread(image_file)
-    cv2.imshow("original Image", image)
-    cv2.waitKey(0)
-    h, w, _ = image.shape
-    shapes = data['shapes']
+    # Determine paths
+    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    images_folder = os.path.join(base_path, "images")
+    output_folder = os.path.join(base_path, "makeup images")
     
-    regions = {region: [] for region in FACIAL_REGIONS}
-    regions = extract_regions(data, regions)
+    # Create output folder if it doesn't exist
+    os.makedirs(output_folder, exist_ok=True)
 
-    # Apply eyeshadow
-    image = apply_eyeshadow(regions['left_eye upper'], regions['left_eyebrow lower'], image, (128, 0, 128), 0.5)
-    image = apply_eyeshadow(regions['right_eye upper'], regions['right_eyebrow lower'], image, (128, 0, 128), 0.5)
-    
+    # Process each image in the folder
+    for file_name in os.listdir(images_folder):
+        if file_name.endswith(".png") or file_name.endswith(".png"):
+            image_file = os.path.join(images_folder, file_name)
+            json_file = os.path.splitext(image_file)[0] + ".json"
 
-    # Apply lipstick
-    image = apply_lipstick(regions['inner_lower_lips'], regions['outer_lower_lips'], image, (0, 0, 255), 0.7)
-    image = apply_lipstick(regions['outer_upper_lips'], regions['inner_upper_lips'], image, (0, 0, 255), 0.7)
+            if not os.path.exists(json_file):
+                print(f"Skipping {file_name}: Corresponding JSON file not found.")
+                continue
 
-    
-    # # Apply eyeliner
-    image = apply_eyeliner(regions['left_eye upper'], image, (0, 0, 0), 1)
-    image = apply_eyeliner(regions['right_eye upper'], image, (0, 0, 0), 1)
-    
-    # Display output
-    cv2.imshow("Makeup Image", image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+            # Load JSON data
+            with open(json_file, 'r') as f:
+                data = json.load(f)
+
+            # Read the image
+            image = cv2.imread(image_file)
+            if image is None:
+                print(f"Skipping {file_name}: Unable to read image.")
+                continue
+
+            regions = {region: [] for region in FACIAL_REGIONS}
+            regions = extract_regions(data, regions)
+
+            # Apply makeup
+            image = apply_eyeshadow(regions['left_eye upper'], regions['left_eyebrow lower'], image, (128, 0, 0), 0.5)
+            image = apply_eyeshadow(regions['right_eye upper'], regions['right_eyebrow lower'], image, (128, 0, 0), 0.5)
+            image = apply_lipstick(regions['inner_lower_lips'], reversed(regions['outer_lower_lips']), image, (0, 0, 127), 0.7)
+            image = apply_lipstick(regions['outer_upper_lips'], reversed(regions['inner_upper_lips']), image, (0, 0, 127), 0.7)
+            image = apply_blush(regions['face_shape_left'][-1:-10:-1], regions['left_eye lower'], image, (128, 0, 100), 15, 0.3)
+            image = apply_blush(regions['face_shape_right'], regions['right_eye lower'], image, (128, 0, 100), 15, 0.3)
+            image = apply_eyeliner(regions['left_eye upper'], image, (0, 0, 0), 1)
+            image = apply_eyeliner(regions['right_eye upper'], image, (0, 0, 0), 1)
+
+            # Save output image
+            output_file = os.path.join(output_folder, file_name)
+            cv2.imwrite(output_file, image)
+            print(f"Processed and saved: {output_file}")
 
 if __name__ == "__main__":
     main()
-

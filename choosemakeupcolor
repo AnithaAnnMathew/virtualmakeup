@@ -64,6 +64,7 @@ def apply_eyeshadow(upper_eyelid_points, lower_eyebrow_points, image, color, int
     polygon = np.array(
         [(int(p['x']), int(p['y'])) for p in upper_eyelid_points] + mp, np.int32
     )
+    # return cv2.polylines(image, [polygon], isClosed=True, color=(0, 255, 0), thickness=1)
     cv2.fillPoly(mask, [polygon], color)
     blurred_eyeshadow = cv2.GaussianBlur(mask, (15, 15), 0)
     return cv2.addWeighted(image, 1, blurred_eyeshadow, intensity, 0)
@@ -76,9 +77,31 @@ def apply_lipstick(outer_lips, inner_lips, image, color, intensity):
         [(int(p['x']), int(p['y'])) for p in inner_lips],
         np.int32
     )
+    # return cv2.polylines(image, [polygon], isClosed=True, color=(0, 255, 0), thickness=1)
     cv2.fillPoly(mask, [polygon], color)
     blurred_lipstick = cv2.GaussianBlur(mask, (15, 15), 0)
     return cv2.addWeighted(image, 1, blurred_lipstick, intensity, 0)
+
+# Apply lipstick
+# def apply_lipstick(outer_lips, inner_lips, image, color, intensity):
+#     mask = np.zeros_like(image)
+#     points=[]
+#         for p in outer_lips:
+#         x=p['x']
+#         y=p['y']
+#         points.append([x,y])
+
+#     for p in inner_lips:
+#         x=p['x']
+#         y=p['y']
+#         points.append([x,y])
+
+#     polygon = np.array([points], dtype=np.int32)
+#     select_lips=cv2.fillPoly(mask,polygon,color)
+#     blurred_lipstick = cv2.GaussianBlur(select_lips, (15, 15), 0)
+
+#     return cv2.addWeighted(image, 1, blurred_lipstick, intensity, 0)
+
 
 # Apply blush
 def apply_blush(face_shape, eye_lower, image, color, radius, intensity):
@@ -105,6 +128,10 @@ def pick_color(msg):
         print(f"Selected Color: {color_code}")
         hex_color = color_code.lstrip('#')
         r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+        # r=r-128
+        # g=g-128
+        # b=b-128
+
         print(f"RGB: ({r}, {g}, {b}) | BGR: ({b}, {g}, {r})")
         return (b, g, r)  # OpenCV uses BGR
 
@@ -135,25 +162,32 @@ def main():
     
     msg1 = "Pick a color for eyeshadow"
     eyeshadow_color = pick_color(msg1)
+     # Apply eyeshadow
+    image = apply_eyeshadow(regions['left_eye upper'], regions['left_eyebrow lower'], image, eyeshadow_color, 0.5)
+    image = apply_eyeshadow(regions['right_eye upper'], regions['right_eyebrow lower'], image, eyeshadow_color, 0.5)
+    
+    cv2.imshow("Makeup Image", image)
 
     msg2 = "Pick a color for lipstick"
     lipstick_color = pick_color(msg2)
+    # Apply lipstick
+    image = apply_lipstick(regions['inner_lower_lips'], reversed(regions['outer_lower_lips']), image, lipstick_color, 0.7)
+    image = apply_lipstick(regions['outer_upper_lips'], reversed(regions['inner_upper_lips']), image, lipstick_color, 0.7)
+    cv2.imshow("Makeup Image", image)
+
 
     msg3 =  "Pick a color for blush"
     blush_color = pick_color(msg3)
 
-    # Apply makeup
-    image = apply_eyeshadow(regions['left_eye upper'], regions['left_eyebrow lower'], image, eyeshadow_color, 0.5)
-    image = apply_eyeshadow(regions['right_eye upper'], regions['right_eyebrow lower'], image, eyeshadow_color, 0.5)
-     # Apply lipstick
-    image = apply_lipstick(regions['inner_lower_lips'], regions['outer_lower_lips'], image, (0, 0, 255), 0.7)
-    image = apply_lipstick(regions['outer_upper_lips'], regions['inner_upper_lips'], image, (0, 0, 255), 0.7)
-
+    
     image = apply_blush(regions['face_shape_left'][-1:-10:-1], regions['left_eye lower'], image, blush_color, 15, 0.3)
     image = apply_blush(regions['face_shape_right'], regions['right_eye lower'], image, blush_color, 15, 0.3)
 
+    
     # Display output
     cv2.imshow("Makeup Image", image)
+
+    cv2.imwrite("output_file1.png", image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
