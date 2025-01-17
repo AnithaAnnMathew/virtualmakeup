@@ -66,7 +66,7 @@ def apply_eyeshadow(upper_eyelid_points, lower_eyebrow_points, image, color, int
     )
     # return cv2.polylines(image, [polygon], isClosed=True, color=(0, 255, 0), thickness=1)
     cv2.fillPoly(mask, [polygon], color)
-    blurred_eyeshadow = cv2.GaussianBlur(mask, (15, 15), 0)
+    blurred_eyeshadow = cv2.blur(mask, (15, 15), 0)
     return cv2.addWeighted(image, 1, blurred_eyeshadow, intensity, 0)
 
 # Apply lipstick
@@ -81,6 +81,7 @@ def apply_lipstick(outer_lips, inner_lips, image, color, intensity):
     cv2.fillPoly(mask, [polygon], color)
     blurred_lipstick = cv2.GaussianBlur(mask, (15, 15), 0)
     return cv2.addWeighted(image, 1, blurred_lipstick, intensity, 0)
+
 
 # Apply lipstick
 # def apply_lipstick(outer_lips, inner_lips, image, color, intensity):
@@ -109,7 +110,9 @@ def apply_blush(face_shape, eye_lower, image, color, radius, intensity):
     mid_y = (face_shape[len(face_shape) // 2]['y'] + eye_lower[len(eye_lower) // 2]['y']) // 2
     mask = np.zeros_like(image)
     cv2.circle(mask, (int(mid_x), int(mid_y)), radius, color, -1)
-    blurred_blush = cv2.GaussianBlur(mask, (35, 35), 0)
+    # blurred_blush = cv2.GaussianBlur(mask, (35, 35), 0)
+    blurred_blush = cv2.blur(mask,(35,35),0)
+
     return cv2.addWeighted(image, 1, blurred_blush, intensity, 0)
 
 # Apply eyeliner
@@ -187,7 +190,7 @@ def main():
     # Display output
     cv2.imshow("Makeup Image", image)
 
-    cv2.imwrite("output_file1.png", image)
+    cv2.imwrite("output_file.png", image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 

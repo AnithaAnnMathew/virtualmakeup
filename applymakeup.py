@@ -3,6 +3,7 @@ import json
 import cv2
 import numpy as np
 
+
 # Define facial regions
 FACIAL_REGIONS = {
     "face_shape_right": list(range(0, 11)),
@@ -65,14 +66,10 @@ def apply_eyeshadow(upper_eyelid_points, lower_eyebrow_points, image, color, int
         [(int(p['x']), int(p['y'])) for p in upper_eyelid_points] + mp, np.int32
     )
     cv2.fillPoly(mask, [polygon], color)
-    blurred_eyeshadow = cv2.GaussianBlur(mask, (15, 15), 0)
+    blurred_eyeshadow = cv2.blur(mask, (15, 15), 0)
     return cv2.addWeighted(image, 1, blurred_eyeshadow, intensity, 0)
     #return cv2.polylines(image_out, [polygon], isClosed=True, color=(0, 255, 0), thickness=1)
     
-
-# Apply lipstick
-import cv2
-import numpy as np
 
 
 def apply_lipstick(outer_lips, inner_lips, image, color, intensity):
@@ -96,7 +93,7 @@ def apply_blush(face_shape, eye_lower, image, color, radius, intensity):
     mid_y = (face_shape[len(face_shape) // 2]['y'] + eye_lower[len(eye_lower) // 2]['y']) // 2
     mask = np.zeros_like(image)
     cv2.circle(mask, (int(mid_x), int(mid_y)), radius, color, -1)
-    blurred_blush = cv2.GaussianBlur(mask, (35, 35), 0)
+    blurred_blush = cv2.blur(mask, (35, 35), 0)
     return cv2.addWeighted(image, 1, blurred_blush, intensity, 0)
 
 
